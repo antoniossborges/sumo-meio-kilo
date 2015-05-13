@@ -1,8 +1,7 @@
-#include <arduino.h>
-
 #ifndef motor_h
 #define motor_h
 
+#include <arduino.h>
 class Motor{
 public:
 	Motor(int portA, int portB, int portPower);
@@ -17,4 +16,6 @@ private:
 	int motorPortB;
 	int portPower;
 
-}
+};
+
+#endif
