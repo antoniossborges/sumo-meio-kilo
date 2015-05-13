@@ -1,4 +1,4 @@
-#include <motor.h>
+#include "motor.h"
 #include <arduino.h>
 
 /*
@@ -16,18 +16,18 @@ Motor::Motor(int portA, int portB, int portPower){
 
 }
 
-void forward(int power){
+void Motor::forward(int power){
 
-	digitalWrite(this->motorPortA, LOW);
+    digitalWrite(this->motorPortA, LOW);
     digitalWrite(this->motorPortB, HIGH);
     //setando o pwm    
     analogWrite(this->portPower, power); 
 
 }
 
-void forBack(int power){
+void Motor::forBack(int power){
 
-	digitalWrite(this->motorPortA, HIGH);
+    digitalWrite(this->motorPortA, HIGH);
     digitalWrite(this->motorPortB, LOW);
     //setando o pwm    
     analogWrite(this->portPower, power); 
