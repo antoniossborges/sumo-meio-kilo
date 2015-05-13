@@ -1,4 +1,4 @@
-#include <motor.h>
+#include "motor.h"
 
 #define echoPin 2 //Pino 13 recebe o pulso do echo  
 #define trigPin 4 //Pino 12 envia o pulso para gerar o echo  
@@ -14,7 +14,8 @@ int motorD2 		= 7;
 //Definição das variaveis de controle
 long distancia		= 0;
 long duration 		= 0;
-
+long tempo              = 0;
+int variacao            = 0;
 //Criação dos motores
 Motor motorRight(motorE1, motorE2, powerMotorLeft);
 Motor motorLeft(motorD1, motorD2, powerMotorRight);
