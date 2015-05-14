@@ -14,15 +14,15 @@ int motorD2 		= 7;
 //Definição das variaveis de controle
 long distancia		= 0;
 long duration 		= 0;
-long tempo              = 0;
-int variacao            = 0;
-//Criação dos motores
+long tempo          = 0;
+int variacao        = 0;
+
+//Criação das instancias dos motores
 Motor motorRight(motorE1, motorE2, powerMotorLeft);
 Motor motorLeft(motorD1, motorD2, powerMotorRight);
 
-
+//Variaveis de controle de velocidade
 int const speedMax = 230;
-
 
 void setup() {
 
@@ -55,13 +55,7 @@ void loop() {
     distancia = duration /29 / 2 ; 
     
 
-    if(distancia <= 15){// verifica se encontrou o oponente e liga o modo kamikaze
-      
-        //Vai para frente
-        motorRight.forward(speedMax);
-        motorLeft.forward(speedMax);
-        
-    }else if (distancia >15 && distancia < 50){ //verifica se o oponente está fora do alcance e procura
+    if (distancia >15 && distancia < 50){ //verifica se o oponente está fora do alcance e procura
       
       	if(tempo <= 4000){ // nos primeiros 4 segundos fica girando para o lado esquerdo lembrando que o oponente no inicio está a esquerda
 
@@ -94,10 +88,18 @@ void loop() {
 
           		variacao = 0;
 
-        	}        
+        	}  
+        	
         	variacao++;
       }
 
-    }        
+    }else if(distancia <= 15){// verifica se encontrou o oponente e liga o modo kamikaze
+      
+        //Vai para frente
+        motorRight.forward(speedMax);
+        motorLeft.forward(speedMax);
+        
+    }   
+    
   	tempo++;  
 }
