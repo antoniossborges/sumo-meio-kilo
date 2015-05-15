@@ -16,6 +16,7 @@ long distancia		= 0;
 long duration 		= 0;
 long tempo          = 0;
 int variacao        = 0;
+bool encontrou      = false;
 
 //Criação das instancias dos motores
 Motor motorRight(motorE1, motorE2, powerMotorLeft);
@@ -55,7 +56,7 @@ void loop() {
     distancia = duration /29 / 2 ; 
     
 
-    if (distancia >15 && distancia < 50){ //verifica se o oponente está fora do alcance e procura
+    if (distancia > 15 && distancia < 50 && encontrou != true){ //verifica se o oponente está fora do alcance e procura
       
       	if(tempo <= 4000){ // nos primeiros 4 segundos fica girando para o lado esquerdo lembrando que o oponente no inicio está a esquerda
 
@@ -74,32 +75,54 @@ void loop() {
 
       	}else if (tempo > 11000){//Caso ele não tenha encontrado ainda sai procurando em zigue e zague
         
-        	if(variacao < 500){
-
-           		motorRight.forward(100);
-          		motorLeft.forward(30);   
-
-        	}else if (variacao < 1000){
-
-          		motorRight.forward(30);
-          		motorLeft.forward(100);
-
-        	}else{
-
-          		variacao = 0;
-
-        	}  
-        	
-        	variacao++;
+        	zigZag();
       }
 
-    }else if(distancia <= 15){// verifica se encontrou o oponente e liga o modo kamikaze
+    }else if (encontrou){
+        /*
+            verifica se a variavel encontrou foi alterada alguma vez 
+            para true, se isso aconteceu significa que ele perdeu o oponente
+            e e mais eficiente procurar em zig zag tendo em vista que o oponente estará perto
+        */
+        zigZag();
+    } else if(distancia <= 15 ){// verifica se encontrou o oponente e liga o modo kamikaze
       
-        //Vai para frente
+        /*
+            Adiciona a encontrou true pois o oponente está perto, assim entrando 
+            na condição acima
+         */
+        encontrou = true;
+        //potencia total a frente, oponente está perto              
         motorRight.forward(speedMax);
         motorLeft.forward(speedMax);
         
     }   
     
   	tempo++;  
+}
+
+/*
+    Metodo utilizado para fazer com que os motores alterem entre 
+    fazer uma curva a direita e esquerda
+*/
+void zigZag(){
+    
+    if(variacao < 500){
+
+        motorRight.forward(100);
+        motorLeft.forward(30);   
+
+    }else if (variacao < 1000){
+
+        motorRight.forward(30);
+        motorLeft.forward(100);
+
+    }else{
+
+        variacao = 0;
+
+    }  
+        	
+    variacao++;
+    
 }
