@@ -1,4 +1,5 @@
 #include "motor.h"
+#include <Servo.h>
 
 #define echoPin 2 //Pino 13 recebe o pulso do echo  
 #define trigPin 4 //Pino 12 envia o pulso para gerar o echo  
@@ -10,6 +11,7 @@ int motorE2 		= 4;
 int powerMotorRight	= 5;
 int motorD1 		= 6;
 int motorD2 		= 7;
+int servoPort       = 8;
 
 //Definição das variaveis de controle
 long distancia		= 0;
@@ -21,6 +23,7 @@ bool encontrou      = false;
 //Criação das instancias dos motores
 Motor motorRight(motorE1, motorE2, powerMotorLeft);
 Motor motorLeft(motorD1, motorD2, powerMotorRight);
+Servo servoMotor;
 
 //Variaveis de controle de velocidade
 int const speedMax = 230;
@@ -29,10 +32,13 @@ void setup() {
 
     Serial.begin(9600);  
 
-    //Abaixar o servo  
+    servoMotor.attach(servoPort);
+    //Abaixar o servo
+    servomotor.write(100);
     
     pinMode(echoPin, INPUT); // define o pino 13 como entrada (recebe)  
-    pinMode(trigPin, OUTPUT); // define o pino 12 como saida (envia)     
+    pinMode(trigPin, OUTPUT); // define o pino 12 como saida (envia)   
+    
   
 }
 
