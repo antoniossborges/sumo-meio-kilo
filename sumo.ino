@@ -1,8 +1,8 @@
-#include "motor.h"
+#include "Motor.h"
 #include "Accelerometer.h"
 #include <Servo.h>
 #include "Maxbotix.h"
-#include "lineSensor.h"
+#include "LineSensor.h"
 
 
 /*
@@ -123,14 +123,52 @@ void loop() {
     //Lendo dados acelerometro
     readAccelerometer();
     
+    //Verifica o estado dos sensores de linha
     if(valueLineRightRear == 1 || valueLineLeftRear == 1 || valueLineRightFront == 1 || valueLineLeftFront == 1){
-        motorRight.stop();
-        motorLeft.stop();
-        delay(5000);
 
-    }
+        //Se os dois sensores de linha da frente forem acionado significa que ele chegou ao fim do campo
+        //com a parte da frente
+        if(valueLineLeftFront == 1 && valueLineRightFront == 1){
+            stopMotor();
+            retire(100);
+            delay(1000);
 
-    if (range > 15 && range < 50 && find != true){ //verifica se o oponente está fora do alcance e procura
+        }else if(valueLineLeftRear == 1 && valueLineRightRear == 1){
+            //Se os dois sensores de linha de trás forem acionado significa que ele chegou ao fim do campo com
+            // a parte de trás
+            stopMotor();
+            kamikaze(255);
+            delay(1000);
+        }else if(valueLineLeftRear == 1 && valueLineLeftFront == 1){
+
+            motorRight.forBack(100);
+            motorLeft.forBack(130);
+
+        }else if(valueLineRightRear ==1 && valueLineRightFront == 1){
+
+            motorRight.forBack(130);
+            motorLeft.forBack(100);
+        }
+        
+
+    }else if(range <= 15 ){// verifica se encontrou o oponente e liga o modo kamikaze
+      
+        /*
+            Adiciona a encontrou true pois o oponente está perto, assim entrando 
+            na condição acima
+         */
+        find = true;
+        //potencia total a frente, oponente está perto   
+        kamikaze(speedMax);       
+        
+    }else if (find){
+        /*
+            verifica se a variavel encontrou foi alterada alguma vez 
+            para true, se isso aconteceu significa que ele perdeu o oponente
+            e e mais eficiente procurar em zig zag tendo em vista que o oponente estará perto
+        */
+        zigZag();
+    } else if (range > 15 && range < 50 && find != true){ //verifica se o oponente está fora do alcance e procura
       
         if(tempo <= 4000){ // nos primeiros 4 segundos fica girando para o lado esquerdo lembrando que o oponente no inicio está a esquerda
 
@@ -149,24 +187,7 @@ void loop() {
             zigZag();
       }
 
-    }else if (find){
-        /*
-            verifica se a variavel encontrou foi alterada alguma vez 
-            para true, se isso aconteceu significa que ele perdeu o oponente
-            e e mais eficiente procurar em zig zag tendo em vista que o oponente estará perto
-        */
-        zigZag();
-    } else if(range <= 15 ){// verifica se encontrou o oponente e liga o modo kamikaze
-      
-        /*
-            Adiciona a encontrou true pois o oponente está perto, assim entrando 
-            na condição acima
-         */
-        find = true;
-        //potencia total a frente, oponente está perto   
-        kamikaze(speedMax);       
-        
-    }   
+    }  
 
     tempo++;  
 }
@@ -204,6 +225,12 @@ void kamikaze(int power){
 
 }
 
+void retire(int power){
+
+    motorRight.forBack(power);
+    motorLeft.forBack(power);
+}
+
 void readAccelerometer(){
 
     atualX = accelerometer.getAxisValueX();
@@ -222,5 +249,11 @@ void turnLeft(int power){
 
     motorRight.forBack(power);
     motorLeft.forward(power);
+
+}
+
+void stopMotor(){
+    motorLeft.stop();
+    motorRight.stop();
 
 }
