@@ -33,3 +33,12 @@ void Motor::forBack(int power){
     analogWrite(this->portPower, power); 
 
 }
+
+void Motor::stop(){
+
+    digitalWrite(this->motorPortA, HIGH);
+    digitalWrite(this->motorPortB, HIGH);
+
+    analogWrite(this->portPower, 255); 
+
+}
