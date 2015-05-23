@@ -10,6 +10,8 @@ public:
 
 	void forBack(int power);
 
+	void stop();
+
 private:
 
 	int motorPortA;
