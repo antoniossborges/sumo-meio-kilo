@@ -1,29 +1,101 @@
 #include "motor.h"
+#include "Accelerometer.h"
 #include <Servo.h>
+#include "Maxbotix.h"
+#include "lineSensor.h"
 
-#define echoPin 2 //Pino 13 recebe o pulso do echo  
-#define trigPin 4 //Pino 12 envia o pulso para gerar o echo  
+
+/*
+    Port of driver motor        Port of sensor range (Sonar)
+
+    ---------------------           --------------------- 
+    |   Port  | Number  |           |   Port  | Number  |    
+    ---------------------           ---------------------
+    | pinENA  |     6   |           |   PW    |    10   |
+    | pinIN1  |     7   |           ---------------------
+    | pinIN2  |     5   |
+    | pinENB  |     3   |        Port of servo motor   
+    | pinIN3  |     4   |           
+    | pinIN4  |     2   |           ----------------------------
+    ---------------------           |   Port         | Number  |
+                                    ----------------------------
+                                    | Servo Right   |  8       |
+                                    | Servo Left    |  9       |
+                                    ----------------------------
+   
+   Port of sensor line                          Port of accelerometer
+
+   ---------------------------------            ---------------------------- 
+   |            Port     | Number  |            |   Port         | Number  |
+   ---------------------------------            ---------------------------- 
+   | Port line sensor    |  1      |            | Port axis X    |   ?     |
+   |    right rear       |         |            | Port axis Y    |   ?     |
+   =================================            | Port axis Z    |   ?     |
+   | Port line sensor    |  13     |            ----------------------------
+   |    left rear        |         |
+   =================================
+   | Port line sensor    |  11     |
+   |    right front      |         |
+   =================================
+   | Port line sensor    |  12     |
+   |    left front       |         |
+   ---------------------------------
+
+
+
+*/
 
 //Definição portas do motor do arduino
-int powerMotorLeft	= 2;
-int motorE1 		= 3;
-int motorE2 		= 4;
-int powerMotorRight	= 5;
-int motorD1 		= 6;
-int motorD2 		= 7;
-int servoPort       = 8;
+int powerMotorLeft          = 6;
+int motorE1                 = 7;
+int motorE2                 = 5;
+int powerMotorRight         = 3;
+int motorD1                 = 4;
+int motorD2                 = 2;
+
+int servoPortRigth          = 8;
+int servoPortLeft           = 9;
+int x;
+int y;
+int z;
+
+//Porta dos sensores de linha
+int portLineSensorRightRear     = 1;
+int portLineSensorLeftRear      = 13;
+int portLineSensorRightFront    = 11;
+int portLineSensorLeftFront     = 12;
 
 //Definição das variaveis de controle
-long distancia		= 0;
-long duration 		= 0;
+
+long duration       = 0;
 long tempo          = 0;
 int variacao        = 0;
-bool encontrou      = false;
+//Verifica se encontrou o oponente em algum momento
+bool find          = false;
+unsigned int range  = 0;
+
+int atualX;
+int atualY;
+int atualZ;
+
+int valueLineRightRear;
+int valueLineLeftRear;
+int valueLineRightFront;
+int valueLineLeftFront;
+
 
 //Criação das instancias dos motores
 Motor motorRight(motorE1, motorE2, powerMotorLeft);
 Motor motorLeft(motorD1, motorD2, powerMotorRight);
-Servo servoMotor;
+Servo servoMotorRight;
+Servo servoMotorLeft;
+Accelerometer accelerometer(x, y, z);
+Maxbotix rangeSensor(10, Maxbotix::PW, Maxbotix::LV);
+
+LineSensor lineSensorRightRear(portLineSensorRightRear);
+LineSensor lineSensorLeftRear(portLineSensorLeftRear);
+LineSensor lineSensorRightFront(portLineSensorRightFront);
+LineSensor lineSensorLeftFront(portLineSensorLeftFront);
 
 //Variaveis de controle de velocidade
 int const speedMax = 230;
@@ -31,80 +103,72 @@ int const speedMax = 230;
 void setup() {
 
     Serial.begin(9600);  
-
-    servoMotor.attach(servoPort);
+    //Iniciando o servo
+    servoMotorRight.attach(servoPortRigth);
+    servoMotorLeft.attach(servoPortLeft);
     //Abaixar o servo
-    servomotor.write(100);
-    
-    pinMode(echoPin, INPUT); // define o pino 13 como entrada (recebe)  
-    pinMode(trigPin, OUTPUT); // define o pino 12 como saida (envia)   
-    
+    servoMotorRight.write(180);    
+    servoMotorLeft.write(0);    
   
 }
 
 void loop() {    
 
-    //seta o pino 12 com um pulso baixo "LOW" ou desligado ou ainda 0  
-    digitalWrite(trigPin, LOW);  
-    // delay de 2 microssegundos  
-    delayMicroseconds(2);  
-    //seta o pino 12 com pulso alto "HIGH" ou ligado ou ainda 1  
-    digitalWrite(trigPin, HIGH);  
-    //delay de 10 microssegundos  
-    delayMicroseconds(10);  
-    //seta o pino 12 com pulso baixo novamente  
-    digitalWrite(trigPin, LOW);  
-    //pulseInt lê o tempo entre a chamada e o pino entrar em high  
-    duration = pulseIn(echoPin,HIGH);  
-    //Esse calculo é baseado em s = v . t, lembrando que o tempo vem dobrado  
-    //porque é o tempo de ida e volta do ultrassom  
+    range = rangeSensor.getRange();
+    valueLineRightRear = lineSensorRightRear.readSensor();
+    valueLineLeftRear = lineSensorLeftRear.readSensor();
+    valueLineRightFront = lineSensorRightFront.readSensor();
+    valueLineLeftRear = lineSensorLeftRear.readSensor();
 
-    distancia = duration /29 / 2 ; 
+    //Lendo dados acelerometro
+    readAccelerometer();
     
+    if(valueLineRightRear == 1 || valueLineLeftRear == 1 || valueLineRightFront == 1 || valueLineLeftFront == 1){
+        motorRight.stop();
+        motorLeft.stop();
+        delay(5000);
 
-    if (distancia > 15 && distancia < 50 && encontrou != true){ //verifica se o oponente está fora do alcance e procura
+    }
+
+    if (range > 15 && range < 50 && find != true){ //verifica se o oponente está fora do alcance e procura
       
-      	if(tempo <= 4000){ // nos primeiros 4 segundos fica girando para o lado esquerdo lembrando que o oponente no inicio está a esquerda
+        if(tempo <= 4000){ // nos primeiros 4 segundos fica girando para o lado esquerdo lembrando que o oponente no inicio está a esquerda
 
-       		motorRight.forward(100);
-        	motorLeft.forBack(100);
+            turnLeft(100);
 
-      	} else if (tempo <= 7000){// dos 4 s a 7 s vai para frente para achar outro ponto
+        } else if (tempo <= 7000){// dos 4 s a 7 s vai para frente para achar outro ponto
 
-        	motorRight.forward(200);
-        	motorLeft.forBack(200);
+            kamikaze(100);
 
-      	}else if(tempo <= 11000){ //dos 7 aos 11 s ele fica girando novamente mais para o lado direito
+        }else if(tempo <= 11000){ //dos 7 aos 11 s ele fica girando novamente mais para o lado direito
 
-        	motorRight.forBack(100);
-        	motorLeft.forward(100);
+            turnLeft(100);
 
-      	}else if (tempo > 11000){//Caso ele não tenha encontrado ainda sai procurando em zigue e zague
+        }else if (tempo > 11000){//Caso ele não tenha encontrado ainda sai procurando em zigue e zague
         
-        	zigZag();
+            zigZag();
       }
 
-    }else if (encontrou){
+    }else if (find){
         /*
             verifica se a variavel encontrou foi alterada alguma vez 
             para true, se isso aconteceu significa que ele perdeu o oponente
             e e mais eficiente procurar em zig zag tendo em vista que o oponente estará perto
         */
         zigZag();
-    } else if(distancia <= 15 ){// verifica se encontrou o oponente e liga o modo kamikaze
+    } else if(range <= 15 ){// verifica se encontrou o oponente e liga o modo kamikaze
       
         /*
             Adiciona a encontrou true pois o oponente está perto, assim entrando 
             na condição acima
          */
-        encontrou = true;
-        //potencia total a frente, oponente está perto              
-        motorRight.forward(speedMax);
-        motorLeft.forward(speedMax);
+        find = true;
+        //potencia total a frente, oponente está perto   
+        kamikaze(speedMax);       
         
     }   
-    
-  	tempo++;  
+
+    tempo++;  
 }
 
 /*
@@ -128,7 +192,35 @@ void zigZag(){
         variacao = 0;
 
     }  
-        	
+            
     variacao++;
     
+}
+
+void kamikaze(int power){
+    
+    motorRight.forward(power);
+    motorLeft.forward(power);
+
+}
+
+void readAccelerometer(){
+
+    atualX = accelerometer.getAxisValueX();
+    atualY = accelerometer.getAxisValueY();
+    atualZ = accelerometer.getAxisValueZ();
+}
+
+void turnRight(int power){
+
+    motorRight.forward(power);
+    motorLeft.forBack(power);
+
+}
+
+void turnLeft(int power){
+
+    motorRight.forBack(power);
+    motorLeft.forward(power);
+
 }
