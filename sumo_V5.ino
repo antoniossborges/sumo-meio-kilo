@@ -1,0 +1,473 @@
+#include "Motor.h"
+#include "Accelerometer.h"
+#include <Servo.h>
+#include "Maxbotix.h"
+#include "LineSensor.h"
+
+
+/*
+    Port of driver motor        Port of sensor range (Sonar)
+
+    ---------------------           --------------------- 
+    |   Port  | Number  |           |   Port  | Number  |    
+    ---------------------           ---------------------
+    | pinENA  |     6   |           |   PW    |    10   |
+    | pinIN1  |     7   |           ---------------------
+    | pinIN2  |     5   |
+    | pinENB  |     3   |        Port of servo motor   
+    | pinIN3  |     4   |           
+    | pinIN4  |     2   |           ----------------------------
+    ---------------------           |   Port         | Number  |
+                                    ----------------------------
+                                    | Servo Right   |  8       |
+                                    | Servo Left    |  9       |
+                                    ----------------------------
+   
+   Port of sensor line                          Port of accelerometer
+
+   ---------------------------------            ---------------------------- 
+   |            Port     | Number  |            |   Port         | Number  |
+   ---------------------------------            ---------------------------- 
+   | Port line sensor    |  1      |            | Port axis X    |   ?     |
+   |    right rear       |         |            | Port axis Y    |   ?     |
+   =================================            | Port axis Z    |   ?     |
+   | Port line sensor    |  13     |            ----------------------------
+   |    left rear        |         |
+   =================================
+   | Port line sensor    |  11     |
+   |    right front      |         |
+   =================================
+   | Port line sensor    |  12     |
+   |    left front       |         |
+   ---------------------------------
+
+
+
+*/
+
+//Definição portas do motor do arduino
+int powerMotorLeft          = 6;
+int motorE1                 = 7;
+int motorE2                 = 5;
+int powerMotorRight         = 3;
+int motorD1                 = 4;
+int motorD2                 = 2;
+
+int servoPortRigth          = 8;
+int servoPortLeft           = 9;
+
+//Porta dos sensores de linha
+int portLineSensorRightRear     = 13;
+int portLineSensorLeftRear      = 12;
+int portLineSensorRightFront    = 1;
+int portLineSensorLeftFront     = 11;
+
+//Definição das variaveis de controle
+
+int tempo                    = 0;
+int tempoAtaque              = 0;
+int variacao                 = 0;
+bool start                   = true;
+//Verifica se encontrou o oponente em algum momento
+bool find           = false;
+unsigned int range  = 0;
+int pot;
+int pot1;
+int controle;
+
+int x;
+int y;
+int z;
+
+int atualX;
+int atualY;
+int atualZ;
+
+int valueLineRightRear;
+int valueLineLeftRear;
+int valueLineRightFront;
+int valueLineLeftFront;
+
+int cont;
+
+
+//Criação das instancias dos motores
+Motor motorRight(motorE1, motorE2, powerMotorLeft);
+Motor motorLeft(motorD1, motorD2, powerMotorRight);
+Servo servoMotorRight;
+Servo servoMotorLeft;
+Accelerometer accelerometer(x, y, z);
+Maxbotix rangeSensor(10, Maxbotix::PW, Maxbotix::LV);
+
+LineSensor lineSensorRightRear(portLineSensorRightRear);
+LineSensor lineSensorLeftRear(portLineSensorLeftRear);
+LineSensor lineSensorRightFront(portLineSensorRightFront);
+LineSensor lineSensorLeftFront(portLineSensorLeftFront);
+
+//Variaveis de controle de velocidade
+int const speedMax = 256;
+
+void setup() {
+
+   // Serial.begin(9600);  
+    //Iniciando o servo
+    servoMotorRight.attach(servoPortRigth);
+    servoMotorLeft.attach(servoPortLeft);
+    
+    controleServo(143);
+
+    //Abaixar o servo
+    //servoMotorRight.write(180);    
+    //servoMotorLeft.write(0);    
+  
+}
+
+void loop() {    
+
+    range = rangeSensor.getRange();
+
+    valueLineRightRear = lineSensorRightRear.readSensor();
+    valueLineLeftRear = lineSensorLeftRear.readSensor();
+    valueLineRightFront = lineSensorRightFront.readSensor();
+    valueLineLeftFront = lineSensorLeftFront.readSensor();
+
+   
+
+     if(start == true){
+
+        kamikazeLeft(150, speedMax);
+        delay(250);
+        start = false;
+
+     }   
+    
+    //Verifica o estado dos sensores de linha
+    if(valueLineRightRear == 0 || valueLineLeftRear == 0 || valueLineRightFront == 0 || valueLineLeftFront == 0){
+        tempo = 0;
+        tempoAtaque = 0;
+
+        //Se os dois sensores de linha da frente forem acionado significa que ele chegou ao fim do campo
+        //com a parte da frente
+        if(valueLineLeftFront == 0 && valueLineRightFront == 0){            
+            
+            retireRight(speedMax,speedMax);
+            delay(25);
+            turnLeft(speedMax,speedMax);
+            delay(25);
+
+        }else if(valueLineLeftRear == 0 && valueLineRightRear == 0){
+            //Se os dois sensores de linha de trás forem acionado significa que ele chegou ao fim do campo com
+            // a parte de trás
+            //controleServo(100);
+            kamikazeRight(speedMax, speedMax);
+            delay(25);            
+
+        }else if(valueLineRightRear == 0 && valueLineRightFront == 0){
+            
+            kamikazeLeft(160, speedMax);
+            delay(150);  
+
+        }else if(valueLineLeftRear == 0 && valueLineLeftFront == 0){
+            
+            kamikazeRight(speedMax, 160);
+            delay(150);  
+
+
+        }else if(valueLineRightRear == 0){                    
+         //Arrumar
+            
+            kamikazeLeft(200,speedMax);
+            delay(75);
+            kamikazeRight(speedMax,speedMax); 
+            delay(100);
+
+        }else if(valueLineLeftRear == 0){ 
+          
+            kamikazeRight(speedMax, 200);
+            delay(75); 
+            kamikazeRight(speedMax,speedMax);
+            delay(100);
+
+        }else if(valueLineRightFront == 0){
+                                   
+            retireLeft(200, speedMax);
+            delay(75);
+            turnRight(speedMax,speedMax);
+            delay(25);
+
+        }else if(valueLineLeftFront == 0){  
+                                  
+            retireRight(speedMax, 200);
+            delay(75);
+            turnLeft(speedMax, speedMax);
+            delay(25);
+                        
+        }        
+
+    }else if(range < 55 ){// verifica se encontrou o oponente e liga o modo kamikaze
+        
+        tempo = 0;
+      
+        
+        //find = true;
+        
+        //potencia total a frente, oponente está perto   
+        if(tempoAtaque < 100){
+            kamikazeRight(speedMax, speedMax);        
+        }else if(tempoAtaque >=100 && tempoAtaque < 150){
+            retireLeft(100, speedMax);
+        }else{
+            tempoAtaque = 0;
+        }
+        tempoAtaque++;
+        
+       
+    }else{ 
+        tempoAtaque = 0;     
+     
+        //kamikazeRight(255,255); 
+        if(tempo < 50){
+            turnLeft(60, 60);
+            //Serial.println(tempo);
+        }else if(tempo >= 50 && tempo < 55){
+            kamikazeLeft(170, speedMax);
+            
+        }else{
+            tempo = 0;
+        }        
+
+        tempo++;
+
+    }
+   
+
+    
+
+
+   
+}
+
+/*
+    Metodo utilizado para fazer com que os motores alterem entre 
+    fazer uma curva a direita e esquerda
+*/
+void zigZag(){
+        
+    if(variacao < 8){
+        
+        pot=1;
+        pot1=1;
+
+        while(pot < 200){
+
+            motorRight.forward(pot);
+            motorLeft.forward(pot1);   
+            pot = pot + 10;
+            pot1++;
+
+            delay(2);
+        }
+
+    }else if (variacao < 11){
+
+        pot=1;
+        pot1=1;
+
+        while(pot < 200){
+
+            motorRight.forward(pot1);
+            motorLeft.forward(pot);
+            pot = pot + 8;
+            pot1++;
+
+            delay(2);
+        }
+
+    }else{
+
+        variacao = 0;
+
+    }  
+            
+    variacao++;
+    Serial.println(variacao);
+    
+}
+
+void kamikazeLeft(int powerLeft, int powerRight){
+
+    if((powerRight - powerLeft) != 0){
+        pot = powerRight - powerLeft;
+    }else{
+        pot = 1;
+    }
+
+    pot1 = 1;
+
+    if(controle != 1){
+        
+        while(pot < powerRight){
+
+            motorLeft.forward(pot1);
+            motorRight.forward(pot);                
+            pot++;
+            pot1++;
+            delay(1);
+        }
+    controle = 1;
+
+    }    
+}
+
+void kamikazeRight(int powerLeft, int powerRight){
+    
+    if((powerRight - powerLeft) != 0){
+        pot = powerLeft - powerRight;
+    }else{
+        pot = 1;
+    }
+
+    pot1 = 1;
+
+    if(controle != 2){
+        
+        while(pot < powerLeft){
+
+            motorLeft.forward(pot);
+            motorRight.forward(pot1);                
+            pot++;
+            pot1++;
+            delay(1);
+        }
+        controle = 2;
+    }    
+}
+
+void retireLeft(int powerLeft, int powerRight){    
+
+    if((powerRight - powerLeft) != 0){
+        
+        pot = powerRight - powerLeft;
+
+    }else{
+
+        pot = 1;
+
+    }
+
+    pot1 = 1;
+
+    if(controle != 3){
+        
+        while(pot < powerRight){
+
+            motorRight.forBack(pot);
+            motorLeft.forBack(pot1);
+            pot++;
+            pot1;
+            delay(1);
+        }  
+        controle = 3;  
+    }
+    
+}
+
+void retireRight(int powerLeft, int powerRight){
+    
+
+    if((powerLeft - powerRight) != 0){
+
+        pot = powerLeft - powerRight;    
+
+    }else {
+        
+        pot = 1;
+
+    }
+
+    pot1 = 1;
+    if(controle != 4){
+        while(pot < powerLeft){
+
+            motorRight.forBack(pot1);
+            motorLeft.forBack(pot);
+            pot++;
+            pot1++;
+            delay(1);
+        }  
+        controle = 4;  
+    }
+    
+}
+
+void turnLeft(int powerLeft, int powerRight){
+    
+
+    if((powerLeft - powerRight) != 0){
+        pot = powerRight - powerLeft;    
+    }else{
+        pot = 1;
+    }
+
+    pot1 = 1;
+    if(controle != 5){
+        while(pot < powerRight){
+
+            motorRight.forward(pot1);
+            motorLeft.forBack(pot);            
+            pot++;
+            pot1++;
+            delay(1);
+
+        }   
+        controle = 5; 
+    }
+    
+}
+
+void turnRight(int powerLeft, int powerRight){
+    
+
+    if((powerLeft - powerRight) != 0){
+        pot = powerLeft - powerRight;    
+    }else{
+        pot = 1;
+    }
+    
+    pot1 = 1; 
+    if(controle != 6){
+        while(pot < powerLeft){
+
+            motorRight.forBack(pot);
+            motorLeft.forward(pot1);                  
+            pot++;
+            pot1++;
+            delay(1); 
+
+        }   
+        controle = 6; 
+    }
+    
+        
+}
+
+void stopMotor(){
+    controle = 0;
+    motorLeft.stop();
+    motorRight.stop();
+
+}
+
+void controleServo(int posicao){
+    
+    servoMotorRight.write(posicao + 10);   //143
+    servoMotorLeft.write(180 - posicao);
+
+}
+
+void readAccelerometer(){
+
+    atualX = accelerometer.getAxisValueX();
+    atualY = accelerometer.getAxisValueY();
+    atualZ = accelerometer.getAxisValueZ();
+}
