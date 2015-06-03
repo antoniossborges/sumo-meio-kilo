@@ -1,0 +1,27 @@
+int cont;
+long media;
+int total;
+Void setup(){
+
+}
+
+void loop(){
+
+  if(cont > 10){
+    total = media / 10;
+    cont =0;
+  }else{
+    media = media + acelerometro;
+  }
+  
+  
+  
+  
+  
+  
+
+
+
+
+
+}
